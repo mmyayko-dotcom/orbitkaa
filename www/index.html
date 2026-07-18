@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ORBITA — счётчик дней</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#04050c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Orbita">
+<link rel="apple-touch-icon" href="icon-192-v2.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192-v2.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#04050c;
+    --bg2:#0a0e22;
+    --panel:rgba(18,20,42,0.55);
+    --border:rgba(139,123,255,0.22);
+    --text:#eae8f5;
+    --muted:#8b8fb0;
+    --accent:#8b7bff;
+    --accent2:#33e6c8;
+    --danger:#ff6b81;
+    --danger2:#ff8fa3;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    overflow-x:hidden;
+  }
+  #stars{
+    position:fixed; inset:0; z-index:0; display:block;
+    background:radial-gradient(ellipse at 30% 20%, rgba(139,123,255,0.10), transparent 55%),
+               radial-gradient(ellipse at 75% 80%, rgba(51,230,200,0.08), transparent 50%),
+               var(--bg);
+  }
+  .wrap{
+    position:relative; z-index:1;
+    min-height:100vh;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    padding:32px 18px 40px;
+  }
+  .eyebrow{
+    font-size:11px; letter-spacing:0.28em; text-transform:uppercase;
+    color:var(--accent2); opacity:0.8; margin-bottom:10px; text-align:center;
+  }
+  .card{
+    width:100%; max-width:460px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:22px;
+    padding:28px 22px 22px;
+    backdrop-filter:blur(14px);
+    -webkit-backdrop-filter:blur(14px);
+    box-shadow:0 0 60px rgba(139,123,255,0.08), inset 0 1px 0 rgba(255,255,255,0.04);
+    text-align:center;
+  }
+  .counter{
+    display:flex; justify-content:center; align-items:baseline; gap:6px;
+    font-family:'Space Grotesk',sans-serif;
+    flex-wrap:wrap;
+  }
+  .cseg{ display:flex; flex-direction:column; align-items:center; min-width:52px; }
+  .cval{
+    font-size:clamp(28px,9vw,42px); font-weight:700; line-height:1;
+    background:linear-gradient(180deg,#fff,var(--accent) 140%);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    font-variant-numeric:tabular-nums;
+  }
+  .clabel{ font-size:10px; letter-spacing:0.14em; text-transform:uppercase; color:var(--muted); margin-top:4px;}
+  .colon{ font-size:clamp(20px,6vw,30px); color:var(--muted); font-weight:600; align-self:flex-start; margin-top:2px;}
+  .startline{
+    margin-top:14px; font-size:12.5px; color:var(--muted);
+  }
+  .startline b{ color:var(--text); font-weight:500; }
+  .orbit-wrap{ margin:22px auto 6px; width:210px; height:210px; position:relative; }
+  .orbit-wrap svg{ width:100%; height:100%; overflow:visible; }
+  .satellite{
+    filter:drop-shadow(0 0 6px var(--accent2)) drop-shadow(0 0 2px #fff);
+    transition:transform 1s linear;
+  }
+  .legend{
+    display:flex; justify-content:center; gap:14px; flex-wrap:wrap;
+    margin-top:6px; font-size:11px; color:var(--muted);
+  }
+  .legend span.dot{
+    display:inline-block; width:7px; height:7px; border-radius:50%;
+    margin-right:4px; vertical-align:middle;
+  }
+  .best{
+    margin-top:18px; padding-top:16px; border-top:1px solid var(--border);
+    font-size:13px; color:var(--muted);
+  }
+  .best b{ color:var(--accent2); font-weight:600; }
+  .actions{ display:flex; gap:10px; margin-top:20px; }
+  button{
+    font-family:'Inter',sans-serif; cursor:pointer; border:none;
+    border-radius:12px; padding:13px 14px; font-size:13.5px; font-weight:600;
+    flex:1; transition:transform .15s ease, opacity .15s ease;
+  }
+  button:active{ transform:scale(0.97); }
+  .btn-ghost{
+    background:rgba(139,123,255,0.10); color:var(--text);
+    border:1px solid var(--border);
+  }
+  .btn-danger{
+    background:linear-gradient(135deg,var(--danger),var(--danger2));
+    color:#1a0508;
+  }
+  .footer-links{
+    margin-top:18px; display:flex; flex-direction:column; gap:8px;
+    align-items:center; font-size:11.5px; color:var(--muted);
+  }
+  .footer-links a, .linklike{
+    color:var(--accent2); text-decoration:none; cursor:pointer; background:none; border:none;
+    font-size:11.5px; font-family:inherit; padding:2px;
+  }
+  .status-dot{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--muted); margin-right:5px; vertical-align:middle;}
+  .status-dot.on{ background:var(--accent2); box-shadow:0 0 6px var(--accent2); }
+
+  /* overlays */
+  .overlay{
+    position:fixed; inset:0; z-index:10; display:none;
+    align-items:center; justify-content:center; padding:20px;
+    background:rgba(3,4,10,0.78); backdrop-filter:blur(4px);
+  }
+  .overlay.show{ display:flex; }
+  .modal{
+    width:100%; max-width:380px; background:var(--bg2); border:1px solid var(--border);
+    border-radius:18px; padding:26px 22px; text-align:center;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+  .modal p.msg{ font-size:16px; line-height:1.5; margin:6px 0 22px; }
+  .modal-row{ display:flex; gap:10px; }
+  input[type="datetime-local"]{
+    width:100%; padding:12px; border-radius:10px; border:1px solid var(--border);
+    background:rgba(255,255,255,0.04); color:var(--text); font-size:14px; margin:14px 0 20px;
+    font-family:'Inter',sans-serif;
+  }
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator{ filter:invert(1); opacity:0.6; }
+  @media (prefers-reduced-motion:reduce){
+    .satellite{ transition:none; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="stars"></canvas>
+
+<div class="wrap">
+  <div class="eyebrow">Текущая орбита</div>
+  <div class="card">
+    <div class="counter" id="counter">
+      <div class="cseg"><div class="cval" id="vd">0</div><div class="clabel">дней</div></div>
+      <div class="colon">:</div>
+      <div class="cseg"><div class="cval" id="vh">00</div><div class="clabel">часов</div></div>
+      <div class="colon">:</div>
+      <div class="cseg"><div class="cval" id="vm">00</div><div class="clabel">минут</div></div>
+      <div class="colon">:</div>
+      <div class="cseg"><div class="cval" id="vs">00</div><div class="clabel">секунд</div></div>
+    </div>
+    <div class="startline">Старт: <b id="startText">—</b></div>
+
+    <div class="orbit-wrap">
+      <svg viewBox="0 0 220 220">
+        <g id="rings"></g>
+        <circle id="satellite" class="satellite" r="4" fill="#fff"/>
+      </svg>
+    </div>
+    <div class="legend" id="legend"></div>
+
+    <div class="best">Лучший результат: <b id="bestText">0 дней</b></div>
+
+    <div class="actions">
+      <button class="btn-ghost" id="btnEdit">Изменить дату</button>
+      <button class="btn-danger" id="btnReset">Сорвался</button>
+    </div>
+
+    <div class="footer-links">
+      <span><span class="status-dot" id="folderDot"></span><span id="folderStatus">Резервная копия: только на этом устройстве</span></span>
+      <button class="linklike" id="btnFolder">Подключить папку для резервной копии</button>
+      <div style="display:flex; gap:16px;">
+        <button class="linklike" id="btnExport">Экспортировать копию</button>
+        <button class="linklike" id="btnImport">Импортировать копию</button>
+      </div>
+      <input type="file" id="fileInput" accept="application/json" style="display:none">
+    </div>
+  </div>
+</div>
+
+<!-- Reset modal -->
+<div class="overlay" id="resetOverlay">
+  <div class="modal">
+    <p class="msg" id="resetMsg"></p>
+    <div class="modal-row">
+      <button class="btn-ghost" id="cancelReset">Отмена</button>
+      <button class="btn-danger" id="confirmReset">Начать заново</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit date modal -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <p class="msg" style="margin-bottom:4px;">Укажи, когда начался отсчёт</p>
+    <input type="datetime-local" id="editInput">
+    <div class="modal-row">
+      <button class="btn-ghost" id="cancelEdit">Отмена</button>
+      <button class="btn-danger" id="confirmEdit" style="background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#08081a;">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  const STORAGE_KEY = "orbita_state_v1";
+  const MILESTONES = [7,30,90,365];
+  const RING_COLORS = ["#8b7bff","#a78bff","#33e6c8","#7bffe0"];
+
+  const COMFORT_MESSAGES = [
+    "Один шаг назад — это не конец пути. Ты всё ещё идёшь вперёд.",
+    "Прогресс редко бывает идеально прямым. Начни заново — ты справишься.",
+    "Каждая попытка учит чему-то новому о себе. Это не провал, а опыт.",
+    "Будь к себе добрее. Ты не сломан — ты просто человек.",
+    "Завтра — новый виток. Сегодняшний день не отменяет всё, что уже было.",
+    "Срыв не стирает твой прогресс — он остаётся частью пути.",
+    "Ты уже доказал, что можешь. Значит, сможешь снова.",
+    "Выдохни. Начни отсчёт заново — без самобичевания.",
+    "Это марафон, а не спринт. Одна остановка не решает исход всей дороги.",
+    "Ты здесь и ты пытаешься — это уже немало.",
+    "Позволь себе начать без стыда. Стыд не помогает — поддержка помогает.",
+    "Каждый новый день — чистый лист и новая возможность."
+  ];
+
+  let state = null;
+  let dirHandle = null;
+  let saveTimer = null;
+
+  // ---------- state load/save ----------
+  function loadState(){
+    let raw = null;
+    try { raw = localStorage.getItem(STORAGE_KEY); } catch(e){}
+    if (raw){
+      try { return JSON.parse(raw); } catch(e){}
+    }
+    const now = Date.now();
+    return { start: now, best: 0 };
+  }
+
+  function persist(immediate){
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e){}
+    if (dirHandle){
+      clearTimeout(saveTimer);
+      const doWrite = () => writeBackupFile(state).catch(()=>{});
+      if (immediate) doWrite(); else saveTimer = setTimeout(doWrite, 1500);
+    }
+  }
+
+  // ---------- folder backup (File System Access API) ----------
+  function idbOpen(){
+    return new Promise((resolve,reject)=>{
+      const req = indexedDB.open("orbita_db", 1);
+      req.onupgradeneeded = () => req.result.createObjectStore("handles");
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  async function idbSet(key, val){
+    try{
+      const db = await idbOpen();
+      return new Promise((resolve,reject)=>{
+        const tx = db.transaction("handles","readwrite");
+        tx.objectStore("handles").put(val, key);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      });
+    }catch(e){}
+  }
+  async function idbGet(key){
+    try{
+      const db = await idbOpen();
+      return new Promise((resolve,reject)=>{
+        const tx = db.transaction("handles","readonly");
+        const req = tx.objectStore("handles").get(key);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error);
+      });
+    }catch(e){ return null; }
+  }
+
+  async function writeBackupFile(data){
+    if (!dirHandle) return;
+    const fileHandle = await dirHandle.getFileHandle("orbita-backup.json", { create:true });
+    const writable = await fileHandle.createWritable();
+    await writable.write(JSON.stringify(data, null, 2));
+    await writable.close();
+  }
+
+  function setFolderStatus(connected){
+    document.getElementById("folderDot").classList.toggle("on", connected);
+    document.getElementById("folderStatus").textContent = connected
+      ? "Резервная копия: сохраняется в выбранную папку"
+      : "Резервная копия: только на этом устройстве";
+  }
+
+  async function connectFolder(){
+    if (!("showDirectoryPicker" in window)){
+      alert("Твой браузер не поддерживает выбор папки. Прогресс всё равно надёжно сохраняется на устройстве — можешь использовать «Экспортировать копию» для ручного бэкапа.");
+      return;
+    }
+    try{
+      const handle = await window.showDirectoryPicker({ mode:"readwrite" });
+      dirHandle = handle;
+      await idbSet("dir", handle);
+      await writeBackupFile(state);
+      setFolderStatus(true);
+    }catch(e){ /* user cancelled or denied — ignore silently */ }
+  }
+
+  async function tryRestoreFolder(){
+    try{
+      const handle = await idbGet("dir");
+      if (!handle) return;
+      const perm = await handle.queryPermission({ mode:"readwrite" });
+      if (perm === "granted"){
+        dirHandle = handle;
+        setFolderStatus(true);
+      }
+      // if not granted, we don't auto-prompt without a user gesture; user can reconnect manually.
+    }catch(e){}
+  }
+
+  // ---------- export / import (works in any browser, incl. iOS) ----------
+  function exportBackup(){
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type:"application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "orbita-backup.json";
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+  }
+  function importBackup(file){
+    const reader = new FileReader();
+    reader.onload = () => {
+      try{
+        const data = JSON.parse(reader.result);
+        if (typeof data.start === "number"){
+          state = { start: data.start, best: Number(data.best)||0 };
+          persist(true);
+          render();
+        } else {
+          alert("Файл повреждён или не подходит.");
+        }
+      }catch(e){ alert("Не удалось прочитать файл."); }
+    };
+    reader.readAsText(file);
+  }
+
+  // ---------- rendering ----------
+  function pad(n){ return String(n).padStart(2,"0"); }
+  function formatDate(ts){
+    const d = new Date(ts);
+    return d.toLocaleString("ru-RU", { day:"numeric", month:"long", year:"numeric", hour:"2-digit", minute:"2-digit" });
+  }
+
+  function buildRings(){
+    const g = document.getElementById("rings");
+    g.innerHTML = "";
+    const legend = document.getElementById("legend");
+    legend.innerHTML = "";
+    const cx=110, cy=110;
+    const radii = [46,66,86,104];
+    MILESTONES.forEach((m,i)=>{
+      const r = radii[i];
+      const circ = 2*Math.PI*r;
+      const track = document.createElementNS("http://www.w3.org/2000/svg","circle");
+      track.setAttribute("cx",cx); track.setAttribute("cy",cy); track.setAttribute("r",r);
+      track.setAttribute("fill","none");
+      track.setAttribute("stroke","rgba(139,123,255,0.14)");
+      track.setAttribute("stroke-width","5");
+      g.appendChild(track);
+
+      const prog = document.createElementNS("http://www.w3.org/2000/svg","circle");
+      prog.setAttribute("cx",cx); prog.setAttribute("cy",cy); prog.setAttribute("r",r);
+      prog.setAttribute("fill","none");
+      prog.setAttribute("stroke", RING_COLORS[i]);
+      prog.setAttribute("stroke-width","5");
+      prog.setAttribute("stroke-linecap","round");
+      prog.setAttribute("stroke-dasharray", circ.toFixed(2));
+      prog.setAttribute("transform", `rotate(-90 ${cx} ${cy})`);
+      prog.id = "prog"+i;
+      prog.dataset.circ = circ;
+      g.appendChild(prog);
+
+      const dot = document.createElement("span");
+      dot.className = "dot";
+      dot.style.background = RING_COLORS[i];
+      const li = document.createElement("span");
+      li.appendChild(dot);
+      li.appendChild(document.createTextNode(m+" дн."));
+      li.id = "leg"+i;
+      legend.appendChild(li);
+    });
+  }
+
+  function updateRings(diffMs){
+    const diffDays = diffMs / 86400000;
+    const cx=110, cy=110;
+    let activeIdx = MILESTONES.length - 1;
+    let activeFrac = 1;
+    for (let i=0;i<MILESTONES.length;i++){
+      const frac = Math.min(1, diffDays / MILESTONES[i]);
+      const el = document.getElementById("prog"+i);
+      const circ = parseFloat(el.dataset.circ);
+      el.setAttribute("stroke-dashoffset", (circ * (1-frac)).toFixed(2));
+      el.style.opacity = frac >= 1 ? 1 : 0.85;
+      const leg = document.getElementById("leg"+i);
+      leg.style.opacity = frac >= 1 ? 1 : 0.55;
+      if (frac < 1 && activeFrac === 1 && i < MILESTONES.length){
+        // first not-yet-complete milestone becomes the active orbit for the satellite
+      }
+    }
+    // find first incomplete milestone for satellite position
+    let idx = MILESTONES.findIndex(m => diffDays < m);
+    if (idx === -1) idx = MILESTONES.length - 1;
+    const frac = idx === MILESTONES.length-1 && diffDays >= MILESTONES[idx]
+      ? 1
+      : Math.min(1, diffDays / MILESTONES[idx]);
+    const radii = [46,66,86,104];
+    const r = radii[idx];
+    const angle = (frac * 2 * Math.PI) - Math.PI/2;
+    const x = cx + r*Math.cos(angle);
+    const y = cy + r*Math.sin(angle);
+    const sat = document.getElementById("satellite");
+    sat.setAttribute("transform", `translate(${x-cx} ${y-cy})`);
+    sat.style.fill = RING_COLORS[idx];
+  }
+
+  function render(){
+    const now = Date.now();
+    let diff = now - state.start;
+    if (diff < 0) diff = 0;
+    if (diff > state.best) state.best = diff;
+
+    const days = Math.floor(diff / 86400000);
+    const hours = Math.floor((diff % 86400000) / 3600000);
+    const minutes = Math.floor((diff % 3600000) / 60000);
+    const seconds = Math.floor((diff % 60000) / 1000);
+
+    document.getElementById("vd").textContent = days;
+    document.getElementById("vh").textContent = pad(hours);
+    document.getElementById("vm").textContent = pad(minutes);
+    document.getElementById("vs").textContent = pad(seconds);
+    document.getElementById("startText").textContent = formatDate(state.start);
+
+    const bd = Math.floor(state.best / 86400000);
+    const bh = Math.floor((state.best % 86400000)/3600000);
+    document.getElementById("bestText").textContent = `${bd} дн. ${bh} ч.`;
+
+    updateRings(diff);
+  }
+
+  function tick(){
+    render();
+    persist(false);
+  }
+
+  // ---------- starfield ----------
+  function startStars(){
+    const canvas = document.getElementById("stars");
+    const ctx = canvas.getContext("2d");
+    let w,h,stars=[];
+    const reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    function resize(){
+      w = canvas.width = window.innerWidth;
+      h = canvas.height = window.innerHeight;
+      const count = Math.floor((w*h)/9000);
+      stars = Array.from({length:count}, ()=>({
+        x: Math.random()*w, y: Math.random()*h,
+        r: Math.random()*1.3 + 0.3,
+        phase: Math.random()*Math.PI*2,
+        speed: 0.4 + Math.random()*0.8
+      }));
+    }
+    window.addEventListener("resize", resize);
+    resize();
+    let t = 0;
+    function draw(){
+      ctx.clearRect(0,0,w,h);
+      for (const s of stars){
+        const alpha = reduced ? 0.6 : 0.35 + 0.5*Math.abs(Math.sin(t*0.001*s.speed + s.phase));
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(2)})`;
+        ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+        ctx.fill();
+      }
+      t += 16;
+      requestAnimationFrame(draw);
+    }
+    draw();
+  }
+
+  // ---------- UI wiring ----------
+  function openOverlay(id){ document.getElementById(id).classList.add("show"); }
+  function closeOverlay(id){ document.getElementById(id).classList.remove("show"); }
+
+  function wireUI(){
+    document.getElementById("btnReset").onclick = () => {
+      const msg = COMFORT_MESSAGES[Math.floor(Math.random()*COMFORT_MESSAGES.length)];
+      document.getElementById("resetMsg").textContent = msg;
+      openOverlay("resetOverlay");
+    };
+    document.getElementById("cancelReset").onclick = () => closeOverlay("resetOverlay");
+    document.getElementById("confirmReset").onclick = () => {
+      const diff = Date.now() - state.start;
+      if (diff > state.best) state.best = diff;
+      state.start = Date.now();
+      persist(true);
+      render();
+      closeOverlay("resetOverlay");
+    };
+
+    document.getElementById("btnEdit").onclick = () => {
+      const d = new Date(state.start);
+      const pad2 = n => String(n).padStart(2,"0");
+      const local = `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+      document.getElementById("editInput").value = local;
+      document.getElementById("editInput").max = (() => {
+        const now = new Date();
+        return `${now.getFullYear()}-${pad2(now.getMonth()+1)}-${pad2(now.getDate())}T${pad2(now.getHours())}:${pad2(now.getMinutes())}`;
+      })();
+      openOverlay("editOverlay");
+    };
+    document.getElementById("cancelEdit").onclick = () => closeOverlay("editOverlay");
+    document.getElementById("confirmEdit").onclick = () => {
+      const val = document.getElementById("editInput").value;
+      if (!val) return;
+      const ts = new Date(val).getTime();
+      if (isNaN(ts) || ts > Date.now()){
+        alert("Укажи корректную дату не позже текущего момента.");
+        return;
+      }
+      state.start = ts;
+      persist(true);
+      render();
+      closeOverlay("editOverlay");
+    };
+
+    document.getElementById("btnFolder").onclick = connectFolder;
+    document.getElementById("btnExport").onclick = exportBackup;
+    document.getElementById("btnImport").onclick = () => document.getElementById("fileInput").click();
+    document.getElementById("fileInput").onchange = (e) => {
+      if (e.target.files && e.target.files[0]) importBackup(e.target.files[0]);
+      e.target.value = "";
+    };
+
+    // close overlays on backdrop click
+    ["resetOverlay","editOverlay"].forEach(id=>{
+      document.getElementById(id).addEventListener("click", (e)=>{
+        if (e.target.id === id) closeOverlay(id);
+      });
+    });
+  }
+
+  // ---------- init ----------
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) render(); });
+  window.addEventListener("beforeunload", () => persist(true));
+
+  state = loadState();
+  buildRings();
+  wireUI();
+  render();
+  startStars();
+  tryRestoreFolder();
+  setInterval(tick, 1000);
+
+  if ("serviceWorker" in navigator){
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch(()=>{});
+    });
+  }
+})();
+</script>
+</body>
+</html>
