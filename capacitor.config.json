@@ -1,0 +1,9 @@
+{
+  "appId": "com.orbita.days",
+  "appName": "Orbita",
+  "webDir": "www",
+  "backgroundColor": "#04050c",
+  "android": {
+    "backgroundColor": "#04050c"
+  }
+}
